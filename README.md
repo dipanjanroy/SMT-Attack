@@ -49,6 +49,11 @@ python SMT_Attack_Verilog.py --selfcheck
 
 The attack keeps two independent symbolic key copies and searches for an input on which they disagree (a distinguishing input). It queries the oracle on that input and constrains every candidate key to match. Each such input eliminates at least one wrong key class; when no distinguishing input remains, the key is uniquely determined and read out. 
 
+## Sample Output
+
+A full example run of the attack is available in
+[Output/sample_output.txt](Output/sample_output.txt).
+
 ## License
 
 Released under the MIT License — see [LICENSE](LICENSE).
