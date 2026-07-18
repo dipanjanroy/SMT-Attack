@@ -21,9 +21,7 @@ The main Python script that performs the SMT-based key recovery attack by genera
 
 # SMT Attack on High-Level-Synthesis Obfuscation
 
-An SMT-based framework for analyzing the security of hardware obfuscation applied at the high-level synthesis stage, through key recovery.
-
-Given a locked (obfuscated) design and its functional oracle, the framework recovers a key that unlocks the design. It is oracle-guided and works on any design obfuscated at the high-level synthesis stage, independent of the specific obfuscation technique.
+An SMT-based framework for analyzing the security of hardware obfuscation applied at the high-level synthesis stage, through key recovery. Given a locked (obfuscated) design and its functional oracle, the framework recovers a key that unlocks the design. It is oracle-guided and works on any design obfuscated at the high-level synthesis stage, independent of the specific obfuscation technique.
 
 ## Requirements
 
@@ -57,5 +55,4 @@ Released under the MIT License — see [LICENSE](LICENSE).
 
 ## Disclaimer
 
-Provided for academic and research purposes — evaluating the security of hardware
-obfuscation/logic-locking schemes.
+Provided only for academic and research purposes: evaluating the security of hardware obfuscation at HLS.
