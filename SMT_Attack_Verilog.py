@@ -370,7 +370,7 @@ class VModule:
 
 
 # ═════════════════════════════════════════════════════════════════════════
-#  PART 2 — SAT Attack (DIP-based)  —  UNCHANGED from smt_attack.py
+#  PART 2 — SAT Attack (DIP-based)
 # ═════════════════════════════════════════════════════════════════════════
 
 def _add_oracle_constraints(solver, obf_motion, key_vars, dip_vals, oracle_out, bit_w):
