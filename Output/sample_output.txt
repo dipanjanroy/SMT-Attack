@@ -1,6 +1,5 @@
 $ SMT_Attack_Verilog.py
  
-  
 Available obfuscated designs:
   [0] iirb_obfuscated_hls.v
   [1] mesa_horner_obfuscated_hls.v
@@ -16,9 +15,9 @@ Total keys              : 40
 
 Running SMT attack on mesa_horner [Verilog]...
   Running DIP-based SAT attack (40 keys, 8 inputs, 8-bit DIP search)...
-    DIP #5  (0.9s elapsed)
+    DIP #5  (0.8s elapsed)
 
-Time to find keys: 10.883915 seconds
+Time to find keys: 10.819120 seconds
 DIPs used: 5
 
 Audit cases (first 10):
@@ -43,16 +42,16 @@ Found keys!
   key12 = False
   key13 = False
   key14 = False
-  key15 = False
-  key16 = False
+  key15 = True
+  key16 = True
   key17 = False
-  key18 = False
+  key18 = True
   key19 = True
   key20 = False
-  key21 = False
+  key21 = True
   key22 = True
   key23 = False
-  key24 = False
+  key24 = True
   key25 = False
   key26 = True
   key27 = True
