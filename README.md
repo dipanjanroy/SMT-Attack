@@ -42,9 +42,6 @@ Optional self-check — plugs the recovered key back into the design and verifie
 python SMT_Attack.py --selfcheck
 ```
 
-> If your folders are located elsewhere, edit `OBF_DIR` and `ORACLE_DIR` at the top of
-> `SMT_Attack.py`.
-
 ## How it works
 
 The attack keeps two independent symbolic key copies and searches for an input on which they disagree (a distinguishing input). It queries the oracle on that input and constrains every candidate key to match. Each such input eliminates at least one wrong key class; when no distinguishing input remains, the key is uniquely determined and read out. 
