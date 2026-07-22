@@ -19,7 +19,7 @@ Contains the corresponding original (unobfuscated) Verilog designs that act as t
 ### Smt_Attack.py
 The main Python script that performs the SMT-based key recovery attack by generating SMT constraints, querying the oracle, and recovering the correct obfuscation key.
 
-# SMT Attack on High-Level-Synthesis Obfuscation
+# SMT Attack on High-Level Synthesis Obfuscation
 
 An SMT-based framework for analyzing the security of hardware obfuscation applied at the high-level synthesis stage, through key recovery. Given a locked (obfuscated) design and its functional oracle, the framework recovers a key that unlocks the design. It is oracle-guided and works on any design obfuscated at the high-level synthesis stage, independent of the specific obfuscation technique.
 
