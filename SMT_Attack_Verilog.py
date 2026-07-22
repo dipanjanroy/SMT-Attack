@@ -1,5 +1,5 @@
 """
-SMT_Attack_Verilog.py
+SMT_Attack.py
 ---------------------
 Verilog-driven smt_attack.py.
 Pairing convention:
