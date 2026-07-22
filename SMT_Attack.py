@@ -2,15 +2,19 @@
 SMT_Attack.py
 ---------------------
 Verilog-driven smt_attack.py.
+
 Pairing convention:
     obfuscated : <design>_obfuscated_hls.v   (in OBF_DIR)
     oracle     : <design>_hls.v              (in ORACLE_DIR)
 """
+
 import os
 import re
 import sys
 import time
+
 from z3 import Solver, sat, BitVec, BitVecVal, Bools, is_true, If, Or
+
 # ─────────────────────────────────────────────
 # Paths are resolved relative to THIS script's location, so the repo works
 # on any machine after cloning — no manual editing needed.
@@ -18,9 +22,12 @@ from z3 import Solver, sat, BitVec, BitVecVal, Bools, is_true, If, Or
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 OBF_DIR    = os.path.join(BASE_DIR, "Obfuscated File")
 ORACLE_DIR = os.path.join(BASE_DIR, "Oracle")
+
 # ═════════════════════════════════════════════════════════════════════════
 #  PART 1 — Minimal Verilog interpreter for the HLS FSM-datapath dialect
 # ═════════════════════════════════════════════════════════════════════════
+#
+#  Accepts state labels of either style: S_CS1.. or S1.. (plus S_IDLE).
 #
 #  The generated modules all share this shape:
 #     - ports: [N:1] key (obfuscated only), inN inputs, outN outputs
@@ -34,17 +41,23 @@ ORACLE_DIR = os.path.join(BASE_DIR, "Oracle")
 #     - function calls  mux8(...) / mux4(...)   → indexed select
 #     - ternary         key[i] ? wrong : correct
 # ─────────────────────────────────────────────────────────────────────────
+
 def _strip_comments(text):
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     text = re.sub(r"//[^\n]*", "", text)
     return text
+
+
 # ---- expression tokenizer + parser → tiny AST -------------------------------
+
 _TOK_RE = re.compile(r"""
       (?P<NUM>   \d+'[bBdDhH][0-9a-fA-F_]+ | \d+ )
     | (?P<ID>    [A-Za-z_]\w* )
     | (?P<OP>    <= | == | [-+*/?:()\[\]{},] )
     | (?P<WS>    \s+ )
 """, re.X)
+
+
 def _tokenize(expr):
     toks = []
     for m in _TOK_RE.finditer(expr):
@@ -52,32 +65,42 @@ def _tokenize(expr):
             continue
         toks.append((m.lastgroup, m.group()))
     return toks
+
+
 def _num_value(tok):
     if "'" in tok:
         _, rest = tok.split("'", 1)
         base = {"b": 2, "d": 10, "h": 16}[rest[0].lower()]
         return int(rest[1:].replace("_", ""), base)
     return int(tok)
+
+
 class _Parser:
     """Recursive-descent parser for the RHS expression grammar we emit."""
+
     def __init__(self, toks):
         self.toks = toks
         self.i = 0
+
     def peek(self, k=0):
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else (None, None)
+
     def eat(self, txt=None):
         kind, val = self.peek()
         if txt is not None and val != txt:
             raise SyntaxError("expected %r got %r" % (txt, val))
         self.i += 1
         return val
+
     def parse(self):
         node = self.expr()
         return node
+
     # precedence: ternary < add/sub < mul/div < primary
     def expr(self):
         return self.ternary()
+
     def ternary(self):
         cond = self.addsub()
         if self.peek()[1] == "?":
@@ -87,18 +110,21 @@ class _Parser:
             b = self.ternary()
             return ("tern", cond, a, b)
         return cond
+
     def addsub(self):
         node = self.muldiv()
         while self.peek()[1] in ("+", "-"):
             op = self.eat()
             node = ("bin", op, node, self.muldiv())
         return node
+
     def muldiv(self):
         node = self.primary()
         while self.peek()[1] in ("*", "/"):
             op = self.eat()
             node = ("bin", op, node, self.primary())
         return node
+
     def primary(self):
         kind, val = self.peek()
         if kind == "NUM":
@@ -123,6 +149,7 @@ class _Parser:
                 return ("keyidx", idx)
             return ("id", val)
         raise SyntaxError("unexpected token %r" % (val,))
+
     def call_args(self):
         self.eat("(")
         args = []
@@ -133,6 +160,7 @@ class _Parser:
                 args.append(self.expr())
         self.eat(")")
         return args
+
     def braces(self):
         # { WIDTH { 1'b0 } }  → zero   OR   { a, b, c } → concat
         self.eat("{")
@@ -152,9 +180,14 @@ class _Parser:
             items.append(self.expr())
         self.eat("}")
         return ("concat", items)
+
+
 def _parse_expr(s):
     return _Parser(_tokenize(s)).parse()
+
+
 # ---- backends ---------------------------------------------------------------
+
 class _ZBackend:
     """Symbolic backend: BitVec arithmetic + Bool keys (for the obfuscated file)."""
     def __init__(self, width, keys):
@@ -167,6 +200,8 @@ class _ZBackend:
     def div(self, a, b): return a / b
     def mux(self, c, a, b): return If(c, a, b)
     def key(self, i):    return self.keys[i - 1]
+
+
 class _PyBackend:
     """Concrete backend: plain Python integers (for the oracle file)."""
     def const(self, v):  return v
@@ -176,8 +211,11 @@ class _PyBackend:
     def div(self, a, b): return a // b
     def mux(self, c, a, b): return a if c else b
     def key(self, i):    raise RuntimeError("oracle referenced a key bit")
+
+
 class VModule:
     """Parsed HLS FSM-datapath Verilog module + symbolic/concrete simulator."""
+
     def __init__(self):
         self.n_keys = 0
         self.inputs = []          # ['in1', 'in2', ...]
@@ -186,14 +224,16 @@ class VModule:
         self.comb = {}            # state -> [(target, AST)]
         self.seq = {}             # state -> [(target, AST)]
         self.idle_regs = []       # [(r_i, AST(in_i))]
-        self.state_order = []     # ['S_CS1', 'S_CS2', ...]
+        self.state_order = []     # ['S1', 'S2', ...] or ['S_CS1', ...]
         self.comb_targets = set()
         self.seq_targets = set()
+
     # -- parsing --------------------------------------------------------------
     @classmethod
     def parse(cls, path):
         text = _strip_comments(open(path).read())
         m = cls()
+
         header = text.split(");", 1)[0]         # module port list
         km = re.search(r"\[\s*(\d+)\s*:\s*1\s*\]\s+key", header)
         m.n_keys = int(km.group(1)) if km else 0
@@ -201,18 +241,22 @@ class VModule:
             {int(x) for x in re.findall(r"\bin(\d+)\b",  header)})]
         m.outputs = ["out%d" % i for i in sorted(
             {int(x) for x in re.findall(r"\bout(\d+)\b", header)})]
+
         # continuous wire assignments (m*, mul_*_o, add_*_o)
         for name, rhs in re.findall(
                 r"wire\s*(?:\[[^\]]*\])?\s*(\w+)\s*=\s*([^;]+);", text):
             m.wire_ast[name] = _parse_expr(rhs)
+
         comb_body = cls._case_body(text, r"always\s*@\s*\(\s*\*\s*\)")
         seq_body  = cls._case_body(text, r"always\s*@\s*\(\s*posedge")
+
         for state, body in cls._case_entries(comb_body):
             assigns = []
             for tgt, rhs in re.findall(r"([A-Za-z_]\w*)\s*=\s*([^;]+);", body):
                 assigns.append((tgt, _parse_expr(rhs)))
                 m.comb_targets.add(tgt)
             m.comb[state] = assigns
+
         for state, body in cls._case_entries(seq_body):
             assigns = []
             for tgt, rhs in re.findall(r"([A-Za-z_]\w*)\s*<=\s*([^;]+);", body):
@@ -228,10 +272,20 @@ class VModule:
                         m.seq_targets.add(tgt)
             if state != "S_IDLE":
                 m.seq[state] = assigns
+
+        # State order: any control-step state (S1.., S_CS1..), sorted by the
+        # trailing integer in its name.  S_IDLE (no trailing digit) excluded.
         m.state_order = sorted(
-            [s for s in m.seq if s.startswith("S_CS")],
-            key=lambda s: int(s[4:]))
+            [s for s in m.seq if re.search(r"\d+$", s)],
+            key=lambda s: int(re.search(r"(\d+)$", s).group(1)))
+
+        if not m.inputs or not m.outputs or not m.state_order:
+            raise ValueError(
+                "Could not parse '%s' into the expected HLS FSM datapath "
+                "(inputs=%s, outputs=%s, states=%s)."
+                % (os.path.basename(path), m.inputs, m.outputs, m.state_order))
         return m
+
     @staticmethod
     def _case_body(text, anchor_re):
         """Return the text inside the case ... endcase that follows `anchor_re`."""
@@ -247,10 +301,12 @@ class VModule:
                     inner_start = start + re.search(r"\)", text[start:]).start() + 1
                     return text[inner_start:start + t.start()]
         raise ValueError("unbalanced case/endcase")
+
     @staticmethod
     def _case_entries(case_body):
-        """Yield (label, body) for each  S_XXX: ... / default: ...  entry."""
-        labels = list(re.finditer(r"(S_[A-Za-z0-9_]+|default)\s*:", case_body))
+        """Yield (label, body) for each  S...: ... / default: ...  entry.
+        Accepts state labels like S_IDLE, S1, S10, S_CS1, ..."""
+        labels = list(re.finditer(r"\b(S\w*|default)\s*:", case_body))
         for k, lab in enumerate(labels):
             name = lab.group(1)
             s = lab.end()
@@ -260,6 +316,7 @@ class VModule:
             body = re.sub(r"end\s*$", "", body)
             if name != "default":
                 yield name, body
+
     # -- evaluation -----------------------------------------------------------
     def _eval(self, node, be, env):
         tag = node[0]
@@ -292,6 +349,7 @@ class VModule:
             ops = [self._eval(a, be, env) for a in node[2][1:]]
             return self._select(idxs, ops, be)
         raise ValueError("bad node %r" % (node,))
+
     def _select(self, key_idxs, ops, be):
         if len(ops) == 1:
             return ops[0]
@@ -300,6 +358,7 @@ class VModule:
         lower = self._select(key_idxs[1:], ops[:half], be)   # bit == 0
         upper = self._select(key_idxs[1:], ops[half:], be)   # bit == 1
         return be.mux(bit, upper, lower)
+
     def simulate(self, be, input_vals):
         env = {}
         for name, val in zip(self.inputs, input_vals):
@@ -308,6 +367,7 @@ class VModule:
             env[tgt] = self._eval(node, be, env)
         for r in self.seq_targets:
             env.setdefault(r, be.const(0))
+
         for state in self.state_order:
             for c in self.comb_targets:             # default: drive to 0
                 env[c] = be.const(0)
@@ -317,11 +377,15 @@ class VModule:
             for tgt, node in self.seq.get(state, []):
                 updates[tgt] = self._eval(node, be, env)
             env.update(updates)
+
         outs = [env[o] for o in self.outputs]
         return outs[0] if len(outs) == 1 else tuple(outs)
+
+
 # ═════════════════════════════════════════════════════════════════════════
 #  PART 2 — SAT Attack (DIP-based)
 # ═════════════════════════════════════════════════════════════════════════
+
 def _add_oracle_constraints(solver, obf_motion, key_vars, dip_vals, oracle_out, bit_w):
     """Constrain key_vars so obf_motion matches oracle_out on dip_vals."""
     concrete = [BitVecVal(v, bit_w) for v in dip_vals]
@@ -331,6 +395,8 @@ def _add_oracle_constraints(solver, obf_motion, key_vars, dip_vals, oracle_out, 
             solver.add(sym_o == exp_o)
     else:
         solver.add(result == oracle_out)
+
+
 def run_smt_attack(obf_motion, oracle_motion, KEY_VARS, n_inputs,
                    dip_bit_width=8, iter_timeout_ms=10000, max_iterations=200):
     """
@@ -339,57 +405,75 @@ def run_smt_attack(obf_motion, oracle_motion, KEY_VARS, n_inputs,
     max_iterations:  cap on DIP-refinement iterations (default 200).
     """
     from z3 import Or
+
     n_keys = len(KEY_VARS)
     BIT_W  = dip_bit_width
     start  = time.perf_counter()
+
     # ── Two independent key copies for DIP finder ─────────────────────────
     K1 = Bools(' '.join("k1_%d" % i for i in range(n_keys)))
     K2 = Bools(' '.join("k2_%d" % i for i in range(n_keys)))
+
     # ── Symbolic inputs (small width for speed) ───────────────────────────
     sym_inputs = [BitVec("x%d" % i, BIT_W) for i in range(n_inputs)]
+
     # ── Build DIP solver with initial distinguishing constraint ───────────
     dip_solver = Solver()
     dip_solver.set("timeout", iter_timeout_ms)
+
     out1 = obf_motion(*K1, *sym_inputs)
     out2 = obf_motion(*K2, *sym_inputs)
+
     if isinstance(out1, tuple):
         dip_solver.add(Or(*[o1 != o2 for o1, o2 in zip(out1, out2)]))
     else:
         dip_solver.add(out1 != out2)
+
     # ── Key solver: accumulates oracle constraints ─────────────────────────
     key_solver = Solver()
     key_solver.set("timeout", iter_timeout_ms)
+
     dip_count      = 0
     accepted_cases = []
+
     print(f"  Running DIP-based SAT attack ({n_keys} keys, {n_inputs} inputs, "
           f"{BIT_W}-bit DIP search)...")
+
     while True:
         # Stop after the maximum number of iterations
         if dip_count >= max_iterations:
             break
         status = dip_solver.check()
+
         if status != sat:
             # No distinguishing input exists — converged
             break
+
         dip_model  = dip_solver.model()
         dip_inputs = [dip_model.eval(x, model_completion=True).as_long()
                       for x in sym_inputs]
+
         # Query oracle with plain Python ints (no width restriction)
         oracle_out = oracle_motion(*dip_inputs)
         dip_count += 1
         accepted_cases.append((dip_inputs, oracle_out))
+
         if dip_count % 5 == 0:
             elapsed_so_far = time.perf_counter() - start
             print(f"    DIP #{dip_count}  ({elapsed_so_far:.1f}s elapsed)")
+
         # Constrain KEY_VARS to match oracle on this DIP
         _add_oracle_constraints(key_solver, obf_motion, KEY_VARS,
                                 dip_inputs, oracle_out, BIT_W)
+
         # Constrain both K1 and K2 to match oracle on this DIP
         _add_oracle_constraints(dip_solver, obf_motion, K1,
                                 dip_inputs, oracle_out, BIT_W)
         _add_oracle_constraints(dip_solver, obf_motion, K2,
                                 dip_inputs, oracle_out, BIT_W)
+
     elapsed = time.perf_counter() - start
+
     # ── Extract final keys ────────────────────────────────────────────────
     if key_solver.check() == sat:
         final_model = key_solver.model()
@@ -406,29 +490,38 @@ def run_smt_attack(obf_motion, oracle_motion, KEY_VARS, n_inputs,
         print(f"\nTime elapsed: {elapsed:.6f} seconds")
         print(f"DIPs used: {dip_count}")
         print("Could not determine a unique key set (unsatisfiable after DIPs).")
+
+
 # ═════════════════════════════════════════════════════════════════════════
 #  PART 3 — Main
 # ═════════════════════════════════════════════════════════════════════════
+
 def _oracle_name_for(obf_filename):
     """iirb_obfuscated_hls.v -> iirb_hls.v"""
     return obf_filename.replace("_obfuscated", "")
+
+
 def main():
     if not os.path.isdir(OBF_DIR):
         print("Obfuscated files folder not found: %s" % OBF_DIR); sys.exit(1)
     if not os.path.isdir(ORACLE_DIR):
         print("Oracle folder not found: %s" % ORACLE_DIR); sys.exit(1)
+
     # ── Fetch every obfuscated Verilog design ────────────────────────────
     obf_files = sorted(f for f in os.listdir(OBF_DIR) if f.endswith(".v"))
     if not obf_files:
         print("No obfuscated Verilog (.v) files found in: %s" % OBF_DIR)
         sys.exit(1)
+
     print("Available obfuscated designs:")
     for i, f in enumerate(obf_files):
         print("  [%d] %s" % (i, f))
+
     choice   = int(input("\nSelect design number to break: "))
     obf_file = obf_files[choice]
     obf_path = os.path.join(OBF_DIR, obf_file)
     print("\nSelected: %s" % obf_file)
+
     # ── Oracle lookup (attack is oracle-guided) ──────────────────────────
     oracle_file = _oracle_name_for(obf_file)
     oracle_path = os.path.join(ORACLE_DIR, oracle_file)
@@ -439,29 +532,37 @@ def main():
               "the oracle. Please add the oracle Verilog and try again.")
         sys.exit(1)
     print("Found oracle : %s" % oracle_file)
+
     # ── Parse both Verilog files ─────────────────────────────────────────
     obf_mod    = VModule.parse(obf_path)
     oracle_mod = VModule.parse(oracle_path)
+
     if obf_mod.n_keys == 0:
         print("\n[ERROR] The selected obfuscated file has no key port; "
               "nothing to recover.")
         sys.exit(1)
+
     print("\nDetected primary inputs : %s" % obf_mod.inputs)
     print("Detected outputs        : %s" % obf_mod.outputs)
     print("Total keys              : %d" % obf_mod.n_keys)
+
     # ── Build runtime functions ──────────────────────────────────────────
     all_key_names = ["key%d" % i for i in range(1, obf_mod.n_keys + 1)]
     key_syms = Bools(' '.join(all_key_names))
     KEY_VARS = (key_syms,) if obf_mod.n_keys == 1 else tuple(key_syms)
+
     BIT_W = 8
+
     def obf_motion(*args):
         keys   = args[:obf_mod.n_keys]
         inputs = args[obf_mod.n_keys:]
         be = _ZBackend(BIT_W, keys)
         return obf_mod.simulate(be, list(inputs))
+
     def oracle_motion(*inputs):
         be = _PyBackend()
         return oracle_mod.simulate(be, list(inputs))
+
     # ── Run SMT attack ───────────────────────────────────────────────────
     design_label = obf_file.replace("_obfuscated_hls.v", "").replace(".v", "")
     print(f"\nRunning SMT attack on {design_label} [Verilog]...")
@@ -472,5 +573,7 @@ def main():
         iter_timeout_ms=10000,
         max_iterations=200,
     )
+
+
 if __name__ == '__main__':
     main()
