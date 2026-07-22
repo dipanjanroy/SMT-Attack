@@ -2,69 +2,46 @@ $ SMT_Attack_Verilog.py
  
 Available obfuscated designs:
   [0] iirb_obfuscated_hls.v
-  [1] mesa_horner_obfuscated_hls.v
+  [1] arf_obfuscated_hls.v
 
-Select design number to break: 1
+Select design number to break: 0
 
-Selected: mesa_horner_obfuscated_hls.v
-Found oracle : mesa_horner_hls.v
+Selected: iirb_obfuscated_hls.v
+Found oracle : iirb_hls.v
 
-Detected primary inputs : ['in1', 'in2', 'in3', 'in4', 'in5', 'in6', 'in7', 'in8']
-Detected outputs        : ['out1', 'out2']
-Total keys              : 40
+Detected primary inputs : ['in1', 'in2', 'in3', 'in4', 'in5', 'in6', 'in7', 'in8', 'in9', 'in10']
+Detected outputs        : ['out1']
+Total keys              : 21
 
-Running SMT attack on mesa_horner [Verilog]...
-  Running DIP-based SAT attack (40 keys, 8 inputs, 8-bit DIP search)...
-    DIP #5  (0.8s elapsed)
+Running SMT attack on iirb [Verilog]...
+  Running DIP-based SAT attack (21 keys, 10 inputs)...
 
-Time to find keys: 10.819120 seconds
-DIPs used: 5
+Time to find keys: 10.891475 seconds
+DIPs used: 2
 
 Audit cases (first 10):
-  DIP 1: inputs=[0, 33, 61, 115, 95, 13, 85, 0], oracle_out=(0, 17327050)
-  DIP 2: inputs=[162, 16, 162, 130, 1, 120, 92, 16], oracle_out=(17334272, 2888816550289344)
-  DIP 3: inputs=[177, 32, 177, 163, 100, 96, 158, 130], oracle_out=(3375132800, 65867769396359424)
-  DIP 4: inputs=[36, 0, 38, 13, 174, 141, 141, 145], oracle_out=(3343984200, 24239592)
-  DIP 5: inputs=[199, 219, 22, 140, 4, 132, 130, 168], oracle_out=(3815884800, 230870657076949218624)
+  DIP 1: inputs=[110, 23, 112, 37, 92, 199, 252, 1, 5, 1], oracle_out=25239
+  DIP 2: inputs=[69, 80, 210, 26, 91, 153, 241, 179, 117, 103], oracle_out=80093
 
 Found keys!
   key1 = False
   key2 = False
-  key3 = True
-  key4 = True
-  key5 = True
-  key6 = True
-  key7 = True
+  key3 = False
+  key4 = False
+  key5 = False
+  key6 = False
+  key7 = False
   key8 = False
   key9 = False
-  key10 = True
+  key10 = False
   key11 = False
   key12 = False
   key13 = False
   key14 = False
-  key15 = True
-  key16 = True
+  key15 = False
+  key16 = False
   key17 = False
-  key18 = True
-  key19 = True
+  key18 = False
+  key19 = False
   key20 = False
-  key21 = True
-  key22 = True
-  key23 = False
-  key24 = True
-  key25 = False
-  key26 = True
-  key27 = True
-  key28 = True
-  key29 = False
-  key30 = False
-  key31 = False
-  key32 = False
-  key33 = True
-  key34 = True
-  key35 = True
-  key36 = False
-  key37 = False
-  key38 = False
-  key39 = False
-  key40 = False
+  key21 = False
