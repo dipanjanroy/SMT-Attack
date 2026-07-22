@@ -1,4 +1,4 @@
-$ SMT_Attack_Verilog.py
+$ SMT_Attack.py
  
 Available obfuscated designs:
   [0] iirb_obfuscated_hls.v
