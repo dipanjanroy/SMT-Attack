@@ -1,9 +1,6 @@
 //======================================================================
-// arf_shield_obfuscated_hls.v
+// arf_obfuscated_hls.v
 //----------------------------------------------------------------------
-// RTL from GITHUB_obfuscated_ARF_SHIELD.txt (PROTECT: demux + mux).
-// Updated: dummy operations are ADDITIONS (D1..D6), not multiplications.
-//
 // 83 key bits, 16 inputs (in1..in16), 2 outputs (out1,out2).
 //   key[1..36]  : twelve 8:1 primary-input muxes (m1..m12), 3 keys each
 //   key[37..42] : DEMUX keys (m5, n8, n10, n13, n14, n20)
@@ -11,9 +8,6 @@
 //   key[82,83]  : output 2:1 muxes (o1/o2 -> out1/out2)
 //
 // Resource constraint : 2 multipliers, 2 adders.
-// With the dummies now additions, all 16 multiplies and 18 adds fit 2 mul /
-// 2 add per step -> 10 control steps.  DEMUX and the 2:1/4:1 key-muxes are
-// combinational glue evaluated from registered values.
 //
 //   S1 : n1=m1*m2         n2=m3*m4
 //   S2 : raw3=m5o0*m6     raw4=m7*m8      | D1=m5o1+m5o1  raw5=n1+n2
@@ -27,7 +21,7 @@
 //   S10: raw27=raw25+n23  raw28=raw26+n24 -> o1,o2 -> out1,out2
 //======================================================================
 
-module arf_shield_obfuscated_hls #(
+module arf_obfuscated_hls #(
     parameter WIDTH = 32
 )(
     input  wire                  clk,
