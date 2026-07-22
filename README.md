@@ -5,7 +5,7 @@ A Satisfiability Modulo Theories (SMT)-based tool that evaluates the security of
 
 ```
 SMT Attack Code/
-│── Obfuscated/          # Obfuscated Verilog designs 	<design>_obfuscated_hls.v
+│── Obfuscated File/          # Obfuscated Verilog designs 	<design>_obfuscated_hls.v
 │── Oracle/              # Original (oracle) Verilog designs	<design>_hls.v
 │── Smt_Attack.py        # Main script for performing the SMT-based attack
 ```
