@@ -16,7 +16,7 @@ from z3 import Solver, sat, BitVec, BitVecVal, Bools, is_true, If, Or
 # on any machine after cloning — no manual editing needed.
 # ─────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-OBF_DIR    = os.path.join(BASE_DIR, "Obfuscated Files")
+OBF_DIR    = os.path.join(BASE_DIR, "Obfuscated File")
 ORACLE_DIR = os.path.join(BASE_DIR, "Oracle")
 # ═════════════════════════════════════════════════════════════════════════
 #  PART 1 — Minimal Verilog interpreter for the HLS FSM-datapath dialect
