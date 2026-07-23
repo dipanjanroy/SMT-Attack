@@ -10,7 +10,7 @@ SMT Attack Code/
 │── Smt_Attack.py        # Main script for performing the SMT-based attack
 ```
 
-### Obfuscated/
+### Obfuscated File/
 Contains the HLS-obfuscated Verilog designs to be analyzed.
 
 ### Oracle/
